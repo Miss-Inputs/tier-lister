@@ -5,8 +5,16 @@ from functools import cached_property
 from typing import Literal, Protocol
 
 import pandas
-from sklearn.preprocessing import minmax_scale
 
+
+def scale_to_range(s: pandas.Series, min_out: float = 0, max_out: float = 1.0):
+	min_in = s.min(skipna=True)
+	max_in = s.max(skipna=True)
+	range_in = max_in - min_in
+	if not range_in:
+		range_in = 1.0
+
+	return ((max_out - min_out) * ((s - min_in) / range_in)) + min_out
 
 @dataclass(frozen=True)
 class Tiers:
@@ -22,9 +30,7 @@ class Tiers:
 		"""Scale centroids between 0.0 and 1.0, used for colour mapping, or None if this is not applicable"""
 		if not self.centroids:
 			return None
-		# Don't worry, it still works on 1D arrays even if it says it wants a MatrixLike in the type hint
-		# If it stops working in some future version use reshape(-1, 1)
-		values = minmax_scale(list(self.centroids.values()))
+		values = scale_to_range(pandas.Series(list(self.centroids.values())))
 		# self.centroids does not necessarily have linear ascending keys
 		return dict(zip(self.centroids.keys(), values, strict=True))
 
